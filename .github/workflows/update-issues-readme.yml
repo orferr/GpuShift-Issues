@@ -1,0 +1,96 @@
+name: Update README issue list
+
+on:
+  issues:
+    types:
+      - opened
+      - closed
+      - reopened
+      - edited
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+
+concurrency:
+  group: update-readme-issues
+  cancel-in-progress: true
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update issue list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          result = subprocess.check_output(
+              [
+                  "gh",
+                  "issue",
+                  "list",
+                  "--state",
+                  "open",
+                  "--limit",
+                  "20",
+                  "--json",
+                  "number,title,url",
+              ],
+              text=True,
+          )
+
+          issues = json.loads(result)
+
+          if issues:
+              issue_list = "\n".join(
+                  f"- [#{issue['number']}]({issue['url']}) {issue['title']}"
+                  for issue in issues
+              )
+          else:
+              issue_list = "_No open issues._"
+
+          readme_path = Path("README.md")
+          readme = readme_path.read_text(encoding="utf-8")
+
+          start_marker = "<!-- ISSUES-LIST:START -->"
+          end_marker = "<!-- ISSUES-LIST:END -->"
+
+          if start_marker not in readme or end_marker not in readme:
+              raise SystemExit("Issue list markers were not found in README.md")
+
+          before, remainder = readme.split(start_marker, 1)
+          _, after = remainder.split(end_marker, 1)
+
+          updated = (
+              f"{before}{start_marker}\n"
+              f"{issue_list}\n"
+              f"{end_marker}{after}"
+          )
+
+          readme_path.write_text(updated, encoding="utf-8")
+          PY
+
+      - name: Commit updated README
+        run: |
+          if git diff --quiet; then
+            echo "README is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add README.md
+          git commit -m "Update open issues list"
+          git push
