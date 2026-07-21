@@ -1,5 +1,10 @@
 # GpuShift Issue Tracker
 
+## Open Issues
+
+- [#4](ссылка) Crash when loading a world
+- [#7](ссылка) Compatibility issue with Distant Horizons
+
 This repository is used for bug reports, compatibility issues and feature requests for GpuShift.
 
 The source code is currently not publicly available.
