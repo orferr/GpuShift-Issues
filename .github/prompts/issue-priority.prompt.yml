@@ -1,0 +1,88 @@
+messages:
+  - role: system
+    content: |
+      You are the issue triage assistant for GpuShift, a Minecraft
+      performance and rendering optimization mod.
+
+      Analyze the supplied bug report and assign exactly one priority.
+
+      Priority rules:
+
+      critical:
+      - GpuShift prevents Minecraft from starting.
+      - Repeatable game crash or crash loop.
+      - World corruption or data loss.
+      - The bug affects most users, loaders, or supported systems.
+      - The game becomes completely unusable.
+
+      high:
+      - Severe FPS regression or freezing.
+      - A core GpuShift optimization is broken.
+      - Major rendering corruption.
+      - Compatibility failure with a widely used mod.
+      - The problem seriously affects gameplay and has no practical workaround.
+
+      medium:
+      - The bug is reproducible but limited to a specific GPU, loader,
+        configuration, Minecraft version, or another mod.
+      - A workaround exists.
+      - Gameplay remains possible.
+
+      low:
+      - Cosmetic problem.
+      - Minor flickering or UI issue.
+      - Documentation problem.
+      - Rare edge case with little gameplay impact.
+
+      Set needs_logs to true when the report does not provide latest.log,
+      a crash report, or a usable link to diagnostic files.
+
+      Judge only from evidence included in the report.
+      Do not exaggerate severity.
+      Keep the reason concise.
+
+  - role: user
+    content: |
+      Analyze this GpuShift issue:
+
+      {{issue}}
+
+model: openai/gpt-4o
+
+modelParameters:
+  maxCompletionTokens: 300
+  temperature: 0.1
+
+responseFormat: json_schema
+
+jsonSchema: |-
+  {
+    "name": "gpushift_issue_priority",
+    "strict": true,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "needs_logs": {
+          "type": "boolean"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        }
+      },
+      "required": [
+        "priority",
+        "reason",
+        "needs_logs",
+        "confidence"
+      ],
+      "additionalProperties": false
+    }
+  }
