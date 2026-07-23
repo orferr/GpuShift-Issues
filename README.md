@@ -9,6 +9,7 @@ The source code is currently not publicly available.
 ## Open Issues
 
 <!-- ISSUES-LIST:START -->
+- [#5](https://github.com/orferr/GpuShift-Issues/issues/5) [Bug]: test
 - [#4](https://github.com/orferr/GpuShift-Issues/issues/4) [Bug]: Some complex BlockEntities don't render properly, and distant entities occasionally flicker.
 <!-- ISSUES-LIST:END -->
 
