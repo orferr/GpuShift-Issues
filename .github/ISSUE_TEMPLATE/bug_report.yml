@@ -1,442 +1,146 @@
-name: "🐛 Bug Report"
-description: Report a crash, performance regression, rendering issue, or mod incompatibility
+name: 🐛 Bug Report
+description: Report a bug in GpuShift
 title: "[Bug]: "
-labels:
-  - bug
-assignees: []
-
+labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for taking the time to report a GpuShift issue.
-
-        Please provide information from the same Minecraft session in which the problem occurred.
-
-        > [!IMPORTANT]
-        > Attach the complete `logs/latest.log` file even if Minecraft did not crash.
-        >
-        > It may contain installed mod versions, renderer errors, mixin conflicts, warnings, and other diagnostic information needed to investigate the issue.
-
-  - type: markdown
-    attributes:
-      value: |
-        ## 1. Game environment
+        Thanks for taking the time to report a bug in **GpuShift**!
+        Please fill out the form below as completely as possible — it helps us fix things faster.
 
   - type: input
-    id: minecraft-version
+    id: mod-version
     attributes:
-      label: Minecraft version
-      description: Enter the exact Minecraft version.
-      placeholder: "Example: 1.21.1"
+      label: GpuShift Version
+      description: The mod version (visible in the jar filename)
+      placeholder: "e.g. 1.4.2"
+    validations:
+      required: true
+
+  - type: input
+    id: mc-version
+    attributes:
+      label: Minecraft Version
+      placeholder: "e.g. 1.20.1"
     validations:
       required: true
 
   - type: dropdown
-    id: mod-loader
+    id: modloader
     attributes:
-      label: Mod loader
-      description: Select the loader used by this Minecraft instance.
+      label: Mod Loader
       options:
-        - "NeoForge"
-        - "Fabric"
-        - "Forge"
-        - "Other"
+        - Forge
+        - Fabric
+        - NeoForge
+        - Quilt
+        - Other
     validations:
       required: true
 
   - type: input
-    id: loader-version
+    id: modloader-version
     attributes:
-      label: Mod loader version
-      description: Enter the full loader version shown by your launcher.
-      placeholder: "Example: NeoForge 21.1.235"
+      label: Mod Loader Version
+      placeholder: "e.g. Fabric Loader 0.15.11"
     validations:
-      required: true
-
-  - type: input
-    id: gpushift-version
-    attributes:
-      label: GpuShift version
-      description: Enter the exact version from the mod file or Mods menu.
-      placeholder: "Example: 1.2.6 or 1.3.0-beta.4"
-    validations:
-      required: true
-
-  - type: input
-    id: java-version
-    attributes:
-      label: Java version
-      description: Enter the Java version used to launch Minecraft.
-      placeholder: "Example: Java 21.0.7"
-    validations:
-      required: true
+      required: false
 
   - type: dropdown
-    id: operating-system
+    id: gpu-vendor
     attributes:
-      label: Operating system
+      label: GPU Vendor
       options:
-        - "Windows 11"
-        - "Windows 10"
-        - "Linux"
-        - "macOS"
-        - "Other"
+        - NVIDIA
+        - AMD
+        - Intel
+        - Apple (Metal/M-series)
+        - Other / Not sure
     validations:
       required: true
 
   - type: input
-    id: gpu
+    id: gpu-model
     attributes:
-      label: Graphics card
-      description: Include the exact GPU model.
-      placeholder: "Example: NVIDIA GeForce RTX 4070 Ti Super"
+      label: GPU Model
+      placeholder: "e.g. RTX 3070"
     validations:
       required: true
 
   - type: input
-    id: gpu-driver
+    id: driver-version
     attributes:
-      label: Graphics driver version
-      description: Enter the installed NVIDIA, AMD, or Intel driver version.
-      placeholder: "Example: NVIDIA 591.74"
+      label: GPU Driver Version
+      placeholder: "e.g. 552.44"
     validations:
-      required: true
-
-  - type: input
-    id: cpu
-    attributes:
-      label: Processor
-      placeholder: "Example: AMD Ryzen 7 5800X"
-    validations:
-      required: true
-
-  - type: input
-    id: memory
-    attributes:
-      label: Allocated memory
-      description: Enter how much RAM is allocated to Minecraft.
-      placeholder: "Example: 8 GB"
-
-  - type: input
-    id: resolution
-    attributes:
-      label: Game resolution
-      placeholder: "Example: 2560x1440"
-
-  - type: dropdown
-    id: game-environment
-    attributes:
-      label: Where does the issue occur?
-      options:
-        - "Singleplayer"
-        - "Multiplayer server"
-        - "Both singleplayer and multiplayer"
-        - "During game startup"
-        - "In the main menu"
-        - "Unknown"
-    validations:
-      required: true
-
-  - type: markdown
-    attributes:
-      value: |
-        ## 2. Issue details
-
-  - type: dropdown
-    id: issue-category
-    attributes:
-      label: Issue category
-      description: Select the category that best matches the problem.
-      options:
-        - "Game crash or startup failure"
-        - "Severe FPS regression"
-        - "Stuttering or freezing"
-        - "Incorrect entity culling"
-        - "Particle rendering"
-        - "GPU Particle Layer"
-        - "Block entity rendering"
-        - "Item frame rendering"
-        - "Shader compatibility"
-        - "Distant Horizons compatibility"
-        - "Mod compatibility"
-        - "Overlay or desktop UI"
-        - "Configuration"
-        - "Visual corruption or flickering"
-        - "Memory or resource usage"
-        - "Other"
-    validations:
-      required: true
+      required: false
 
   - type: textarea
-    id: issue-summary
+    id: other-mods
     attributes:
-      label: Issue summary
-      description: Clearly explain what is broken and when it happens.
+      label: Other Installed Mods (especially rendering-related)
+      description: e.g. Sodium, Iris, Optifine, shader packs, etc.
       placeholder: |
-        Describe the problem in a few sentences.
+        - Sodium 0.5.8
+        - Iris 1.6.17
+        - ...
+    validations:
+      required: false
 
-        Include what you were doing when it appeared and which GpuShift feature may be involved.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What happened? What did you expect to happen instead?
+      placeholder: A clear and concise description of the issue.
     validations:
       required: true
 
   - type: textarea
-    id: reproduction-steps
+    id: steps
     attributes:
-      label: Steps to reproduce
-      description: Provide the exact sequence needed to reproduce the issue.
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
       placeholder: |
-        1. Launch Minecraft with...
-        2. Enter a world
-        3. Enable...
-        4. Move to or interact with...
-        5. The problem appears
-    validations:
-      required: true
-
-  - type: dropdown
-    id: frequency
-    attributes:
-      label: How often does the issue occur?
-      options:
-        - "Every time"
-        - "Most of the time"
-        - "Sometimes"
-        - "Happened once"
-        - "Unable to reproduce again"
+        1. Open GpuShift settings
+        2. Enable Benchmark Mode
+        3. ...
     validations:
       required: true
 
   - type: textarea
-    id: expected-behavior
+    id: expected
     attributes:
-      label: Expected behavior
-      description: Explain what should have happened.
-      placeholder: "Example: Distant entities should remain visible without flickering."
+      label: Expected Behavior
     validations:
-      required: true
+      required: false
 
   - type: textarea
-    id: actual-behavior
+    id: logs
     attributes:
-      label: Actual behavior
-      description: Explain what happened instead.
-      placeholder: "Example: Entities near the edge of the render distance repeatedly disappear and reappear."
+      label: Logs / Crash Report
+      description: Paste the log (latest.log, crash-report) or a pastebin/gist link. You can also drag and drop files here.
+      render: shell
     validations:
-      required: true
-
-  - type: input
-    id: last-working-version
-    attributes:
-      label: Last known working GpuShift version
-      description: Leave blank if you do not know or the issue has always existed.
-      placeholder: "Example: 1.2.5"
-
-  - type: markdown
-    attributes:
-      value: |
-        ## 3. Performance information
-
-        Complete this section when reporting FPS loss, stuttering, freezes, or unusually high resource usage.
+      required: false
 
   - type: textarea
-    id: performance-results
+    id: screenshots
     attributes:
-      label: Performance comparison
-      description: Compare both tests using the same world, location, settings, and camera position.
-      placeholder: |
-        Without GpuShift:
-        - Average FPS:
-        - 1% low FPS:
-        - GPU usage:
-        - CPU usage:
-
-        With GpuShift:
-        - Average FPS:
-        - 1% low FPS:
-        - GPU usage:
-        - CPU usage:
-
-  - type: textarea
-    id: test-conditions
-    attributes:
-      label: Test conditions
-      description: Describe the settings and scene used for testing.
-      placeholder: |
-        Render distance:
-        Simulation distance:
-        Graphics preset:
-        Shader:
-        Distant Horizons distance:
-        Approximate entity count:
-        Approximate particle count:
-        Test duration:
-
-  - type: markdown
-    attributes:
-      value: |
-        ## 4. Mods and configuration
-
-  - type: textarea
-    id: relevant-mods
-    attributes:
-      label: Relevant installed mods
-      description: List renderer, shader, optimization, entity, particle, and block-entity mods with their versions.
-      placeholder: |
-        Sodium or Embeddium:
-        Iris or Oculus:
-        Distant Horizons:
-        ImmediatelyFast:
-        Entity Culling:
-        ModernFix:
-        FancyBlockParticles:
-        Smart Particles:
-        GPUTape:
-        Other relevant mods:
-
-  - type: input
-    id: shader-pack
-    attributes:
-      label: Shader pack
-      description: Enter the shader name and version, or write "None".
-      placeholder: "Example: Complementary Reimagined 5.5.1 or None"
+      label: Screenshots / Video
+      description: If applicable, drag and drop files here.
     validations:
-      required: true
-
-  - type: dropdown
-    id: minimal-test
-    attributes:
-      label: Did you test with only GpuShift and its required dependencies?
-      description: A minimal test helps determine whether another mod causes the issue.
-      options:
-        - "Yes, the issue still occurs"
-        - "Yes, the issue disappears"
-        - "No, I have not tested this"
-        - "I cannot perform a minimal test"
-    validations:
-      required: true
-
-  - type: dropdown
-    id: disabled-test
-    attributes:
-      label: Does disabling GpuShift fix the issue?
-      options:
-        - "Yes"
-        - "No"
-        - "Partially"
-        - "I could not test this"
-    validations:
-      required: true
-
-  - type: textarea
-    id: changed-settings
-    attributes:
-      label: Changed GpuShift settings
-      description: List any settings that differ from the defaults.
-      placeholder: |
-        Particle scale:
-        Entity culling:
-        Block Entity Budget:
-        Item Frame Budget:
-        GPU Particle backend:
-        Auto Tune or calibration:
-        Other changed settings:
-
-  - type: textarea
-    id: workaround
-    attributes:
-      label: Known workaround
-      description: Explain whether changing a setting or disabling another mod temporarily fixes the issue.
-      placeholder: |
-        Example: Setting GPU Particle Backend to VANILLA stops the flickering.
-
-        Write "None known" if no workaround was found.
-
-  - type: markdown
-    attributes:
-      value: |
-        ## 5. Diagnostic files
-
-        Open your Minecraft instance folder and navigate to:
-
-        ```text
-        logs/latest.log
-        ```
-
-        Drag and drop the file into the field below. GitHub will upload it and insert a link automatically.
-
-  - type: textarea
-    id: latest-log
-    attributes:
-      label: Latest log
-      description: |
-        Attach the complete `logs/latest.log` file from the same Minecraft session in which the issue occurred.
-
-        Do not write only “no crash”, “nothing in the log”, or paste a small excerpt.
-      placeholder: "Drag and drop latest.log here."
-    validations:
-      required: true
-
-  - type: textarea
-    id: crash-report
-    attributes:
-      label: Crash report
-      description: |
-        Attach the crash report if Minecraft generated one.
-
-        Crash reports are usually located in the `crash-reports` folder.
-      placeholder: "Drag and drop the crash report here, or write: No crash report was generated."
-
-  - type: textarea
-    id: configuration-files
-    attributes:
-      label: GpuShift configuration
-      description: Attach your GpuShift configuration file if any settings were changed.
-      placeholder: "Drag and drop the relevant configuration file here."
-
-  - type: textarea
-    id: screenshots-video
-    attributes:
-      label: Screenshots or video
-      description: Attach screenshots or a short video when the issue is visual or difficult to explain.
-      placeholder: "Drag and drop files here, or paste a video link."
-
-  - type: textarea
-    id: additional-context
-    attributes:
-      label: Additional context
-      description: Add any other information that may help investigate the issue.
-      placeholder: |
-        Examples:
-        - The issue started after updating another mod.
-        - It only occurs in an existing world.
-        - It happens only while moving.
-        - It affects one specific entity, particle, or block entity.
-
-  - type: markdown
-    attributes:
-      value: |
-        ## 6. Confirmation
+      required: false
 
   - type: checkboxes
-    id: confirmation
+    id: checks
     attributes:
-      label: Required confirmation
+      label: Pre-submission Checklist
       options:
-        - label: I am using the latest available version of GpuShift.
+        - label: I checked that a similar issue doesn't already exist
           required: true
-
-        - label: I searched existing Issues and did not find the same problem.
+        - label: I'm using the latest version of GpuShift
           required: true
-
-        - label: I provided clear and repeatable reproduction steps.
-          required: true
-
-        - label: I attached the complete `logs/latest.log` file from the affected session.
-          required: true
-
-        - label: I understand that `latest.log` and a crash report are different files.
-          required: true
-
-        - label: I have not included passwords, access tokens, or other private information.
-          required: true
+        - label: This bug reproduces without other mod conflicts (or conflicting mods are listed above)
+          required: false
