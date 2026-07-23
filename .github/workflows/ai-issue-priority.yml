@@ -35,7 +35,7 @@ jobs:
             "Title: " + .issue.title +
             "\n\nAuthor: @" + .issue.user.login +
             "\n\nBody:\n" + (.issue.body // "")
-          ' "$GITHUB_EVENT_PATH" > "$RUNNER_TEMP/gpushift-issue.txt"
+          ' "$GITHUB_EVENT_PATH" > "$RUNNER_TEMP/pocket-alchemy-issue.txt"
 
       - name: Analyze issue with GitHub Models
         id: ai
@@ -43,9 +43,9 @@ jobs:
         with:
           prompt-file: .github/prompts/issue-priority.prompt.yml
           file_input: |
-            issue: ${{ runner.temp }}/gpushift-issue.txt
+            issue: ${{ runner.temp }}/pocket-alchemy-issue.txt
 
-      - name: Apply priority
+      - name: Apply priority and post AI response
         uses: actions/github-script@v7
         env:
           AI_RESPONSE: ${{ steps.ai.outputs.response }}
@@ -85,11 +85,11 @@ jobs:
               },
               "priority: high": {
                 color: "D93F0B",
-                description: "Major bug with serious impact"
+                description: "Major bug with serious gameplay impact"
               },
               "priority: medium": {
                 color: "FBCA04",
-                description: "Reproducible bug with limited impact or a workaround"
+                description: "Reproducible issue with limited impact or a workaround"
               },
               "priority: low": {
                 color: "0E8A16",
@@ -97,7 +97,7 @@ jobs:
               },
               "needs logs": {
                 color: "5319E7",
-                description: "latest.log or crash report is required"
+                description: "The latest.log file is required"
               }
             };
 
@@ -127,17 +127,19 @@ jobs:
               await ensureLabel(labelName);
             }
 
-            const issue = await github.rest.issues.get({
+            const issueResponse = await github.rest.issues.get({
               owner,
               repo,
               issue_number: issueNumber
             });
 
-            const currentLabels = issue.data.labels
-              .map(label => typeof label === "string" ? label : label.name);
+            const currentLabels = issueResponse.data.labels.map(
+              label => typeof label === "string" ? label : label.name
+            );
 
-            const priorityLabels = allowedPriorities
-              .map(priority => `priority: ${priority}`);
+            const priorityLabels = allowedPriorities.map(
+              priority => `priority: ${priority}`
+            );
 
             for (const label of priorityLabels) {
               if (currentLabels.includes(label)) {
@@ -177,8 +179,54 @@ jobs:
               labels: labelsToAdd
             });
 
+            const marker = "<!-- pocket-alchemy-ai-triage -->";
+
+            const logMessage = result.needs_logs
+              ? "\n\nPlease attach `logs/latest.log`. It is required even when the game did not crash because it may contain mod conflicts, warnings, loading errors, and exact mod versions."
+              : "";
+
+            const commentBody = `${marker}
+            Thank you for the report.
+
+            **Preliminary AI priority:** \`${result.priority}\`
+
+            ${result.reason}${logMessage}
+
+            _This is an automated preliminary assessment. The final decision is made by the developer._`;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100
+              }
+            );
+
+            const previousComment = comments.find(comment =>
+              comment.user?.login === "github-actions[bot]" &&
+              comment.body?.includes(marker)
+            );
+
+            if (previousComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: previousComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: commentBody
+              });
+            }
+
             core.summary
-              .addHeading("GpuShift AI triage")
+              .addHeading("Pocket Alchemy AI triage")
               .addTable([
                 [
                   { data: "Field", header: true },
@@ -190,3 +238,65 @@ jobs:
                 ["Reason", result.reason]
               ])
               .write();
+
+      - name: Send AI report to Gmail
+        if: github.event.action == 'opened'
+        shell: python
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          AI_RESPONSE: ${{ steps.ai.outputs.response }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: |
+          import json
+          import os
+          import smtplib
+          from email.message import EmailMessage
+
+          result = json.loads(os.environ["AI_RESPONSE"])
+
+          priority = result["priority"]
+          reason = result["reason"]
+          needs_logs = result["needs_logs"]
+          confidence = result["confidence"]
+
+          issue_number = os.environ["ISSUE_NUMBER"]
+          issue_title = os.environ["ISSUE_TITLE"]
+          issue_author = os.environ["ISSUE_AUTHOR"]
+          issue_url = os.environ["ISSUE_URL"]
+
+          gmail_user = os.environ["GMAIL_USER"]
+          gmail_password = os.environ["GMAIL_APP_PASSWORD"]
+
+          message = EmailMessage()
+          message["From"] = gmail_user
+          message["To"] = gmail_user
+          message["Subject"] = (
+              f"[Pocket Alchemy] {priority.upper()} bug #{issue_number}"
+          )
+
+          message.set_content(
+              f"""New Pocket Alchemy bug report
+
+          Issue: #{issue_number}
+          Title: {issue_title}
+          Author: @{issue_author}
+
+          AI priority: {priority}
+          Confidence: {confidence}
+          Needs latest.log: {needs_logs}
+
+          AI summary:
+          {reason}
+
+          Open issue:
+          {issue_url}
+          """
+          )
+
+          with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+              smtp.login(gmail_user, gmail_password)
+              smtp.send_message(message)
