@@ -1,146 +1,295 @@
-name: 🐛 Bug Report
-description: Report a bug in GpuShift
+name: "🐛 Bug Report"
+description: Report a bug, crash, broken mechanic, or compatibility problem
 title: "[Bug]: "
-labels: ["bug", "needs-triage"]
+labels:
+  - bug
+assignees: []
+
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug in **GpuShift**!
-        Please fill out the form below as completely as possible — it helps us fix things faster.
+        # Pocket Alchemy Bug Report
+
+        Thank you for helping improve **Pocket Alchemy**.
+
+        Please provide enough information to reproduce and diagnose the problem. Fields marked as required must be completed before the report can be submitted.
+
+        > [!IMPORTANT]
+        > Attach `logs/latest.log` even if Minecraft did not crash.
+        >
+        > The log may contain mod conflicts, loading errors, warnings, exact mod versions, and other information that is not visible in-game.
+
+  - type: markdown
+    attributes:
+      value: |
+        ## 1. Environment
+
+        Tell us which game and mod versions were being used when the problem occurred.
 
   - type: input
-    id: mod-version
+    id: minecraft-version
     attributes:
-      label: GpuShift Version
-      description: The mod version (visible in the jar filename)
-      placeholder: "e.g. 1.4.2"
+      label: Minecraft version
+      description: Enter the exact Minecraft version.
+      placeholder: "Example: 1.21.1"
     validations:
       required: true
 
   - type: input
-    id: mc-version
+    id: neoforge-version
     attributes:
-      label: Minecraft Version
-      placeholder: "e.g. 1.20.1"
+      label: NeoForge version
+      description: Enter the full NeoForge version shown by your launcher.
+      placeholder: "Example: 21.1.235"
+    validations:
+      required: true
+
+  - type: input
+    id: pocket-alchemy-version
+    attributes:
+      label: Pocket Alchemy version
+      description: Enter the exact version from the mod file or Mods menu.
+      placeholder: "Example: 0.1.0-beta.2"
+    validations:
+      required: true
+
+  - type: input
+    id: java-version
+    attributes:
+      label: Java version
+      description: Usually Java 21 for Minecraft 1.21.1.
+      placeholder: "Example: Java 21.0.7"
     validations:
       required: true
 
   - type: dropdown
-    id: modloader
+    id: game-mode
     attributes:
-      label: Mod Loader
+      label: Where does the issue occur?
       options:
-        - Forge
-        - Fabric
-        - NeoForge
-        - Quilt
+        - Singleplayer
+        - Multiplayer server
+        - Both singleplayer and multiplayer
+        - Main menu or game startup
+        - Unknown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: bug-category
+    attributes:
+      label: Bug category
+      description: Select the category that best matches the problem.
+      options:
+        - Crash or game startup
+        - Brewing mechanics
+        - Potion or effect
+        - Ingredient or recipe
+        - Item or inventory
+        - Progression or recipe book
+        - User interface
+        - Visual or animation
+        - Sound
+        - Multiplayer or server
+        - Mod compatibility
+        - Performance
         - Other
     validations:
       required: true
 
-  - type: input
-    id: modloader-version
+  - type: markdown
     attributes:
-      label: Mod Loader Version
-      placeholder: "e.g. Fabric Loader 0.15.11"
-    validations:
-      required: false
+      value: |
+        ## 2. Problem
 
-  - type: dropdown
-    id: gpu-vendor
-    attributes:
-      label: GPU Vendor
-      options:
-        - NVIDIA
-        - AMD
-        - Intel
-        - Apple (Metal/M-series)
-        - Other / Not sure
-    validations:
-      required: true
-
-  - type: input
-    id: gpu-model
-    attributes:
-      label: GPU Model
-      placeholder: "e.g. RTX 3070"
-    validations:
-      required: true
-
-  - type: input
-    id: driver-version
-    attributes:
-      label: GPU Driver Version
-      placeholder: "e.g. 552.44"
-    validations:
-      required: false
-
-  - type: textarea
-    id: other-mods
-    attributes:
-      label: Other Installed Mods (especially rendering-related)
-      description: e.g. Sodium, Iris, Optifine, shader packs, etc.
-      placeholder: |
-        - Sodium 0.5.8
-        - Iris 1.6.17
-        - ...
-    validations:
-      required: false
+        Describe exactly what happened and what should have happened instead.
 
   - type: textarea
     id: description
     attributes:
-      label: Bug Description
-      description: What happened? What did you expect to happen instead?
-      placeholder: A clear and concise description of the issue.
+      label: Issue summary
+      description: Give a clear description of the problem.
+      placeholder: |
+        Describe the problem in a few sentences.
+
+        Include what you were doing when it appeared and which Pocket Alchemy feature was involved.
     validations:
       required: true
 
   - type: textarea
-    id: steps
+    id: reproduction
     attributes:
-      label: Steps to Reproduce
-      description: How can we reproduce this bug?
+      label: Steps to reproduce
+      description: List the exact actions needed to make the problem appear.
       placeholder: |
-        1. Open GpuShift settings
-        2. Enable Benchmark Mode
-        3. ...
+        1. Launch Minecraft with...
+        2. Enter a world
+        3. Obtain or craft...
+        4. Use the item on...
+        5. The problem appears
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Every time
+        - Most of the time
+        - Sometimes
+        - Happened once
+        - Unable to test again
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Expected Behavior
+      label: Expected behavior
+      description: Explain what Pocket Alchemy should have done.
+      placeholder: "Example: The potion should have been placed into the selected pouch slot."
     validations:
-      required: false
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Explain what happened instead.
+      placeholder: "Example: The potion disappeared and the pouch slot remained empty."
+    validations:
+      required: true
+
+  - type: input
+    id: last-working-version
+    attributes:
+      label: Last known working version
+      description: Leave blank if the problem has always existed or you do not know.
+      placeholder: "Example: 0.1.0-beta.1"
+
+  - type: markdown
+    attributes:
+      value: |
+        ## 3. Compatibility
+
+        Other mods may change recipes, screens, inventories, rendering, or player interactions.
+
+  - type: textarea
+    id: relevant-mods
+    attributes:
+      label: Relevant installed mods
+      description: List mods that may be connected to the problem. Include their versions when possible.
+      placeholder: |
+        EMI 1.x.x
+        JEI 19.x.x
+        Curios 9.x.x
+        Other relevant mods
+
+  - type: dropdown
+    id: minimal-test
+    attributes:
+      label: Did you test with only Pocket Alchemy and its required dependencies?
+      description: A minimal test helps determine whether another mod is causing the problem.
+      options:
+        - Yes, the problem still occurs
+        - Yes, the problem disappears
+        - No, I have not tested this
+        - I cannot perform a minimal test
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: Explain whether the problem can be avoided or temporarily fixed.
+      placeholder: |
+        Example: Reopening the inventory temporarily fixes the problem.
+
+        Write "None known" if you have not found a workaround.
+
+  - type: markdown
+    attributes:
+      value: |
+        ## 4. Diagnostic files
+
+        Diagnostic files are usually more useful than screenshots alone.
+
+        ### How to find `latest.log`
+
+        Open your Minecraft instance folder and navigate to:
+
+        ```text
+        logs/latest.log
+        ```
+
+        Drag and drop the file into the field below. GitHub will upload it and insert a link automatically.
 
   - type: textarea
     id: logs
     attributes:
-      label: Logs / Crash Report
-      description: Paste the log (latest.log, crash-report) or a pastebin/gist link. You can also drag and drop files here.
-      render: shell
+      label: Latest log
+      description: |
+        Attach `logs/latest.log` from the session where the issue occurred.
+
+        Do not write only “no crash” or “nothing in the log”. The actual file is still required.
+      placeholder: "Drag and drop latest.log here."
     validations:
-      required: false
+      required: true
 
   - type: textarea
-    id: screenshots
+    id: crash-report
     attributes:
-      label: Screenshots / Video
-      description: If applicable, drag and drop files here.
-    validations:
-      required: false
+      label: Crash report
+      description: |
+        Attach the crash report only if Minecraft generated one.
+
+        Crash reports are usually located in `crash-reports/`.
+      placeholder: "Drag and drop the crash report here, or write: No crash report was generated."
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or video
+      description: Attach screenshots or a short video if the problem is visual or difficult to explain.
+      placeholder: "Drag and drop files here, or paste a video link."
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other information that may help reproduce or understand the problem.
+      placeholder: |
+        Examples:
+        - The issue started after updating another mod.
+        - It only happens in an existing world.
+        - It affects one specific item or recipe.
+
+  - type: markdown
+    attributes:
+      value: |
+        ## 5. Confirmation
+
+        Please confirm the following before submitting the report.
 
   - type: checkboxes
-    id: checks
+    id: confirmation
     attributes:
-      label: Pre-submission Checklist
+      label: Required confirmation
       options:
-        - label: I checked that a similar issue doesn't already exist
+        - label: I am using the latest available version of Pocket Alchemy.
           required: true
-        - label: I'm using the latest version of GpuShift
+
+        - label: I searched existing Issues and did not find the same problem.
           required: true
-        - label: This bug reproduces without other mod conflicts (or conflicting mods are listed above)
-          required: false
+
+        - label: I provided clear steps that can be used to reproduce the issue.
+          required: true
+
+        - label: I attached `logs/latest.log` from the session where the issue occurred.
+          required: true
+
+        - label: I understand that a crash report and `latest.log` are different files.
+          required: true
