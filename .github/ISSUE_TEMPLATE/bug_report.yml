@@ -11,19 +11,17 @@ body:
       value: |
         Thank you for taking the time to report a GpuShift issue.
 
-        Please provide accurate information from the Minecraft session where the problem occurred.
+        Please provide information from the same Minecraft session in which the problem occurred.
 
         > [!IMPORTANT]
-        > Attach `logs/latest.log` even if Minecraft did not crash.
+        > Attach the complete `logs/latest.log` file even if Minecraft did not crash.
         >
-        > It contains installed mod versions, loading warnings, renderer errors, mixin conflicts, and other diagnostic information needed to investigate the issue.
+        > It may contain installed mod versions, renderer errors, mixin conflicts, warnings, and other diagnostic information needed to investigate the issue.
 
   - type: markdown
     attributes:
       value: |
         ## 1. Game environment
-
-        Provide the exact versions and hardware used when the issue occurred.
 
   - type: input
     id: minecraft-version
@@ -38,12 +36,12 @@ body:
     id: mod-loader
     attributes:
       label: Mod loader
-      description: Select the loader used by this instance.
+      description: Select the loader used by this Minecraft instance.
       options:
-        - NeoForge
-        - Fabric
-        - Forge
-        - Other
+        - "NeoForge"
+        - "Fabric"
+        - "Forge"
+        - "Other"
     validations:
       required: true
 
@@ -79,11 +77,11 @@ body:
     attributes:
       label: Operating system
       options:
-        - Windows 11
-        - Windows 10
-        - Linux
-        - macOS
-        - Other
+        - "Windows 11"
+        - "Windows 10"
+        - "Linux"
+        - "macOS"
+        - "Other"
     validations:
       required: true
 
@@ -92,7 +90,7 @@ body:
     attributes:
       label: Graphics card
       description: Include the exact GPU model.
-      placeholder: "Example: NVIDIA RTX 4070 Ti Super"
+      placeholder: "Example: NVIDIA GeForce RTX 4070 Ti Super"
     validations:
       required: true
 
@@ -100,7 +98,7 @@ body:
     id: gpu-driver
     attributes:
       label: Graphics driver version
-      description: Enter the currently installed NVIDIA, AMD, or Intel driver version.
+      description: Enter the installed NVIDIA, AMD, or Intel driver version.
       placeholder: "Example: NVIDIA 591.74"
     validations:
       required: true
@@ -113,17 +111,30 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: memory
+    attributes:
+      label: Allocated memory
+      description: Enter how much RAM is allocated to Minecraft.
+      placeholder: "Example: 8 GB"
+
+  - type: input
+    id: resolution
+    attributes:
+      label: Game resolution
+      placeholder: "Example: 2560x1440"
+
   - type: dropdown
     id: game-environment
     attributes:
       label: Where does the issue occur?
       options:
-        - Singleplayer
-        - Multiplayer server
-        - Both singleplayer and multiplayer
-        - During game startup
-        - In the main menu
-        - Unknown
+        - "Singleplayer"
+        - "Multiplayer server"
+        - "Both singleplayer and multiplayer"
+        - "During game startup"
+        - "In the main menu"
+        - "Unknown"
     validations:
       required: true
 
@@ -132,30 +143,28 @@ body:
       value: |
         ## 2. Issue details
 
-        Describe the problem and identify the GpuShift system involved.
-
   - type: dropdown
     id: issue-category
     attributes:
       label: Issue category
       description: Select the category that best matches the problem.
       options:
-        - Game crash or startup failure
-        - Severe FPS regression
-        - Stuttering or freezing
-        - Incorrect entity culling
-        - Particle rendering
-        - GPU Particle Layer
-        - Block entity rendering
-        - Item frame rendering
-        - Shader compatibility
-        - Distant Horizons compatibility
-        - Mod compatibility
-        - Overlay or desktop UI
-        - Configuration
-        - Visual corruption or flickering
-        - Memory or resource usage
-        - Other
+        - "Game crash or startup failure"
+        - "Severe FPS regression"
+        - "Stuttering or freezing"
+        - "Incorrect entity culling"
+        - "Particle rendering"
+        - "GPU Particle Layer"
+        - "Block entity rendering"
+        - "Item frame rendering"
+        - "Shader compatibility"
+        - "Distant Horizons compatibility"
+        - "Mod compatibility"
+        - "Overlay or desktop UI"
+        - "Configuration"
+        - "Visual corruption or flickering"
+        - "Memory or resource usage"
+        - "Other"
     validations:
       required: true
 
@@ -167,7 +176,7 @@ body:
       placeholder: |
         Describe the problem in a few sentences.
 
-        Include which GpuShift feature appears to be involved and what you were doing when the issue occurred.
+        Include what you were doing when it appeared and which GpuShift feature may be involved.
     validations:
       required: true
 
@@ -190,11 +199,11 @@ body:
     attributes:
       label: How often does the issue occur?
       options:
-        - Every time
-        - Most of the time
-        - Sometimes
-        - Happened once
-        - Unable to reproduce again
+        - "Every time"
+        - "Most of the time"
+        - "Sometimes"
+        - "Happened once"
+        - "Unable to reproduce again"
     validations:
       required: true
 
@@ -228,13 +237,13 @@ body:
       value: |
         ## 3. Performance information
 
-        Complete this section for FPS drops, stuttering, freezes, or unusually high resource usage.
+        Complete this section when reporting FPS loss, stuttering, freezes, or unusually high resource usage.
 
   - type: textarea
     id: performance-results
     attributes:
-      label: Performance before and after
-      description: Provide comparable measurements from the same world, location, settings, and camera position.
+      label: Performance comparison
+      description: Compare both tests using the same world, location, settings, and camera position.
       placeholder: |
         Without GpuShift:
         - Average FPS:
@@ -252,14 +261,15 @@ body:
     id: test-conditions
     attributes:
       label: Test conditions
-      description: Describe the world, render distance, simulation distance, shader, and scene used for testing.
+      description: Describe the settings and scene used for testing.
       placeholder: |
-        Resolution:
         Render distance:
         Simulation distance:
+        Graphics preset:
         Shader:
         Distant Horizons distance:
-        Number of entities or particles:
+        Approximate entity count:
+        Approximate particle count:
         Test duration:
 
   - type: markdown
@@ -267,22 +277,21 @@ body:
       value: |
         ## 4. Mods and configuration
 
-        Renderer mods, shaders, optimization mods, and custom GpuShift settings are especially important.
-
   - type: textarea
     id: relevant-mods
     attributes:
       label: Relevant installed mods
       description: List renderer, shader, optimization, entity, particle, and block-entity mods with their versions.
       placeholder: |
-        Sodium:
-        Embeddium:
+        Sodium or Embeddium:
         Iris or Oculus:
         Distant Horizons:
         ImmediatelyFast:
         Entity Culling:
         ModernFix:
         FancyBlockParticles:
+        Smart Particles:
+        GPUTape:
         Other relevant mods:
 
   - type: input
@@ -300,10 +309,10 @@ body:
       label: Did you test with only GpuShift and its required dependencies?
       description: A minimal test helps determine whether another mod causes the issue.
       options:
-        - Yes, the issue still occurs
-        - Yes, the issue disappears
-        - No, I have not tested this
-        - I cannot perform a minimal test
+        - "Yes, the issue still occurs"
+        - "Yes, the issue disappears"
+        - "No, I have not tested this"
+        - "I cannot perform a minimal test"
     validations:
       required: true
 
@@ -312,10 +321,10 @@ body:
     attributes:
       label: Does disabling GpuShift fix the issue?
       options:
-        - Yes
-        - No
-        - Partially
-        - I could not test this
+        - "Yes"
+        - "No"
+        - "Partially"
+        - "I could not test this"
     validations:
       required: true
 
@@ -330,13 +339,14 @@ body:
         Block Entity Budget:
         Item Frame Budget:
         GPU Particle backend:
+        Auto Tune or calibration:
         Other changed settings:
 
   - type: textarea
     id: workaround
     attributes:
       label: Known workaround
-      description: Explain whether a setting change or other action temporarily fixes the issue.
+      description: Explain whether changing a setting or disabling another mod temporarily fixes the issue.
       placeholder: |
         Example: Setting GPU Particle Backend to VANILLA stops the flickering.
 
@@ -346,8 +356,6 @@ body:
     attributes:
       value: |
         ## 5. Diagnostic files
-
-        ### Finding `latest.log`
 
         Open your Minecraft instance folder and navigate to:
 
@@ -362,9 +370,9 @@ body:
     attributes:
       label: Latest log
       description: |
-        Attach `logs/latest.log` from the same Minecraft session in which the issue occurred.
+        Attach the complete `logs/latest.log` file from the same Minecraft session in which the issue occurred.
 
-        Do not write only “no crash”, “nothing in the log”, or paste a small excerpt. Attach the complete file.
+        Do not write only “no crash”, “nothing in the log”, or paste a small excerpt.
       placeholder: "Drag and drop latest.log here."
     validations:
       required: true
@@ -383,10 +391,7 @@ body:
     id: configuration-files
     attributes:
       label: GpuShift configuration
-      description: |
-        Attach your GpuShift configuration file if you changed any settings.
-
-        Remove private information before uploading files.
+      description: Attach your GpuShift configuration file if any settings were changed.
       placeholder: "Drag and drop the relevant configuration file here."
 
   - type: textarea
@@ -403,7 +408,7 @@ body:
       description: Add any other information that may help investigate the issue.
       placeholder: |
         Examples:
-        - The issue started after updating a specific mod.
+        - The issue started after updating another mod.
         - It only occurs in an existing world.
         - It happens only while moving.
         - It affects one specific entity, particle, or block entity.
@@ -412,8 +417,6 @@ body:
     attributes:
       value: |
         ## 6. Confirmation
-
-        Confirm that the report contains enough information to investigate the issue.
 
   - type: checkboxes
     id: confirmation
