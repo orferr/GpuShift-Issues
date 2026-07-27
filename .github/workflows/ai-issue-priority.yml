@@ -1,4 +1,4 @@
-name: AI Issue Priority
+name: AI Issue Triage
 
 on:
   issues:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   triage:
-    name: Analyze bug priority
+    name: Analyze GpuShift bug
 
     if: contains(github.event.issue.labels.*.name, 'bug')
 
@@ -28,14 +28,266 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare issue
-        shell: bash
+      - name: Prepare issue and diagnostic log
+        shell: python
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_FILE: ${{ runner.temp }}/gpushift-issue.txt
+          LOG_FILE: ${{ runner.temp }}/gpushift-log-excerpt.txt
         run: |
-          jq -r '
-            "Title: " + .issue.title +
-            "\n\nAuthor: @" + .issue.user.login +
-            "\n\nBody:\n" + (.issue.body // "")
-          ' "$GITHUB_EVENT_PATH" > "$RUNNER_TEMP/pocket-alchemy-issue.txt"
+          import html
+          import json
+          import os
+          import re
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          MAX_DOWNLOAD_BYTES = 8 * 1024 * 1024
+          MAX_EXCERPT_CHARS = 300_000
+          CONTEXT_LINES = 3
+
+          allowed_initial_hosts = {
+              "github.com",
+              "user-attachments.githubusercontent.com",
+              "user-images.githubusercontent.com",
+              "private-user-images.githubusercontent.com",
+              "objects.githubusercontent.com",
+          }
+
+          def is_allowed_final_host(host: str | None) -> bool:
+              if not host:
+                  return False
+
+              if host in allowed_initial_hosts:
+                  return True
+
+              if host.endswith(".githubusercontent.com"):
+                  return True
+
+              if host in {
+                  "github-releases.githubusercontent.com",
+                  "release-assets.githubusercontent.com",
+              }:
+                  return True
+
+              if host.endswith(".amazonaws.com") and (
+                  "github-production-user-asset" in host
+                  or "github-cloud" in host
+              ):
+                  return True
+
+              return False
+
+          keywords = (
+              "gpushift",
+              "error",
+              "exception",
+              "fatal",
+              "failed",
+              "failure",
+              "warn",
+              "mixin",
+              "crash",
+              "renderer",
+              "render thread",
+              "shader",
+              "iris",
+              "oculus",
+              "sodium",
+              "embeddium",
+              "distant horizons",
+              "particle",
+              "entity",
+              "block entity",
+              "item frame",
+              "opengl",
+              "vulkan",
+              "driver",
+              "outofmemory",
+              "stacktrace",
+          )
+
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+          issue = event["issue"]
+          title = issue.get("title", "")
+          body = issue.get("body") or ""
+          author = (issue.get("user") or {}).get("login", "unknown")
+
+          issue_text = (
+              f"Title: {title}\n\n"
+              f"Author: @{author}\n\n"
+              f"Body:\n{body}\n"
+          )
+          Path(os.environ["ISSUE_FILE"]).write_text(issue_text, encoding="utf-8")
+
+          candidates = []
+
+          for label, url in re.findall(
+              r"\[([^\]]*)\]\((https?://[^)\s]+)\)",
+              body,
+              flags=re.IGNORECASE,
+          ):
+              candidates.append((html.unescape(label), html.unescape(url)))
+
+          for url in re.findall(r"https?://[^\s<>()\]]+", body, flags=re.IGNORECASE):
+              candidates.append(("", html.unescape(url.rstrip(".,;:"))))
+
+          unique_candidates = []
+          seen = set()
+
+          for label, url in candidates:
+              if url in seen:
+                  continue
+              seen.add(url)
+
+              parsed = urllib.parse.urlparse(url)
+              if parsed.scheme not in {"http", "https"}:
+                  continue
+              if parsed.hostname not in allowed_initial_hosts:
+                  continue
+
+              combined = f"{label} {url}".lower()
+              score = 0
+
+              if "latest.log" in combined:
+                  score += 100
+              if ".log" in combined:
+                  score += 70
+              if "debug.log" in combined:
+                  score += 40
+              if "crash" in combined:
+                  score += 20
+              if "config" in combined:
+                  score -= 20
+              if combined.endswith(".jar") or ".jar?" in combined:
+                  score -= 200
+              if combined.endswith(".zip") or ".zip?" in combined:
+                  score -= 200
+              if combined.endswith(".exe") or ".exe?" in combined:
+                  score -= 200
+
+              unique_candidates.append((score, label, url))
+
+          unique_candidates.sort(key=lambda item: item[0], reverse=True)
+
+          def write_status(status: str, details: str) -> None:
+              Path(os.environ["LOG_FILE"]).write_text(
+                  f"LOG_FETCH_STATUS: {status}\n"
+                  f"DETAILS: {details}\n"
+                  "No numbered latest.log content is available.\n",
+                  encoding="utf-8",
+              )
+
+          if not unique_candidates or unique_candidates[0][0] <= 0:
+              write_status(
+                  "no_attachment",
+                  "No likely latest.log attachment or usable log link was found in the issue body.",
+              )
+              raise SystemExit(0)
+
+          _, selected_label, selected_url = unique_candidates[0]
+
+          headers = {
+              "User-Agent": "GpuShift-Issue-Triage/1.0",
+              "Accept": "text/plain, application/octet-stream;q=0.9, */*;q=0.1",
+          }
+
+          token = os.environ.get("GITHUB_TOKEN", "")
+          if token:
+              headers["Authorization"] = f"Bearer {token}"
+
+          try:
+              request = urllib.request.Request(selected_url, headers=headers)
+
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  final_url = response.geturl()
+                  final_host = urllib.parse.urlparse(final_url).hostname
+
+                  if not is_allowed_final_host(final_host):
+                      raise RuntimeError(f"Redirected to disallowed host: {final_host}")
+
+                  content_length = response.headers.get("Content-Length")
+                  if content_length and int(content_length) > MAX_DOWNLOAD_BYTES:
+                      raise RuntimeError("Attachment exceeds the 8 MiB download limit")
+
+                  chunks = []
+                  total = 0
+
+                  while True:
+                      chunk = response.read(64 * 1024)
+                      if not chunk:
+                          break
+
+                      total += len(chunk)
+                      if total > MAX_DOWNLOAD_BYTES:
+                          raise RuntimeError("Attachment exceeds the 8 MiB download limit")
+
+                      chunks.append(chunk)
+
+              raw = b"".join(chunks)
+
+              if b"\x00" in raw[:4096]:
+                  raise RuntimeError("Attachment appears to be a binary file")
+
+              text = raw.decode("utf-8", errors="replace")
+
+          except Exception as exc:
+              write_status(
+                  "unreadable",
+                  f"A likely log attachment was found but could not be processed: {type(exc).__name__}: {exc}",
+              )
+              raise SystemExit(0)
+
+          lines = text.splitlines()
+
+          if not lines:
+              write_status("unreadable", "The downloaded attachment was empty.")
+              raise SystemExit(0)
+
+          selected_indexes = set()
+
+          for index in range(min(250, len(lines))):
+              selected_indexes.add(index)
+
+          for index in range(max(0, len(lines) - 500), len(lines)):
+              selected_indexes.add(index)
+
+          for index, line in enumerate(lines):
+              lowered = line.lower()
+              if any(keyword in lowered for keyword in keywords):
+                  start = max(0, index - CONTEXT_LINES)
+                  end = min(len(lines), index + CONTEXT_LINES + 1)
+                  selected_indexes.update(range(start, end))
+
+          output = [
+              "LOG_FETCH_STATUS: downloaded",
+              f"SOURCE_LABEL: {selected_label or 'unlabeled attachment'}",
+              f"SOURCE_URL: {selected_url}",
+              f"ORIGINAL_LINE_COUNT: {len(lines)}",
+              "The following lines preserve their original latest.log line numbers.",
+              "",
+          ]
+
+          current_chars = sum(len(item) + 1 for item in output)
+
+          for index in sorted(selected_indexes):
+              numbered = f"L{index + 1} | {lines[index]}"
+              projected = current_chars + len(numbered) + 1
+
+              if projected > MAX_EXCERPT_CHARS:
+                  output.append(
+                      "EXCERPT_TRUNCATED: Additional log lines were omitted because the safe input limit was reached."
+                  )
+                  break
+
+              output.append(numbered)
+              current_chars = projected
+
+          Path(os.environ["LOG_FILE"]).write_text(
+              "\n".join(output) + "\n",
+              encoding="utf-8",
+          )
 
       - name: Analyze issue with GitHub Models
         id: ai
@@ -43,14 +295,18 @@ jobs:
         with:
           prompt-file: .github/prompts/issue-priority.prompt.yml
           file_input: |
-            issue: ${{ runner.temp }}/pocket-alchemy-issue.txt
+            issue: ${{ runner.temp }}/gpushift-issue.txt
+            log: ${{ runner.temp }}/gpushift-log-excerpt.txt
 
-      - name: Apply priority and post AI response
+      - name: Apply labels and post verified AI response
         uses: actions/github-script@v7
         env:
           AI_RESPONSE: ${{ steps.ai.outputs.response }}
+          NUMBERED_LOG_PATH: ${{ runner.temp }}/gpushift-log-excerpt.txt
         with:
           script: |
+            const fs = require("fs");
+
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const issueNumber = context.issue.number;
@@ -73,10 +329,42 @@ jobs:
               "low"
             ];
 
+            const allowedLogStatuses = [
+              "analyzed",
+              "missing_required",
+              "not_applicable",
+              "unreadable"
+            ];
+
+            const allowedRelations = [
+              "direct",
+              "possible",
+              "no_direct_evidence",
+              "unrelated",
+              "unknown"
+            ];
+
             if (!allowedPriorities.includes(result.priority)) {
               core.setFailed(`Invalid priority: ${result.priority}`);
               return;
             }
+
+            if (!allowedLogStatuses.includes(result.log_status)) {
+              core.setFailed(`Invalid log status: ${result.log_status}`);
+              return;
+            }
+
+            if (!allowedRelations.includes(result.gpushift_relation)) {
+              core.setFailed(
+                `Invalid GpuShift relation: ${result.gpushift_relation}`
+              );
+              return;
+            }
+
+            const needsLogs = [
+              "missing_required",
+              "unreadable"
+            ].includes(result.log_status);
 
             const labelDefinitions = {
               "priority: critical": {
@@ -85,7 +373,7 @@ jobs:
               },
               "priority: high": {
                 color: "D93F0B",
-                description: "Major bug with serious gameplay impact"
+                description: "Major bug with serious impact"
               },
               "priority: medium": {
                 color: "FBCA04",
@@ -97,7 +385,7 @@ jobs:
               },
               "needs logs": {
                 color: "5319E7",
-                description: "The latest.log file is required"
+                description: "A usable latest.log file is required"
               }
             };
 
@@ -143,32 +431,41 @@ jobs:
 
             for (const label of priorityLabels) {
               if (currentLabels.includes(label)) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: issueNumber,
+                    name: label
+                  });
+                } catch (error) {
+                  if (error.status !== 404) {
+                    throw error;
+                  }
+                }
+              }
+            }
+
+            if (!needsLogs && currentLabels.includes("needs logs")) {
+              try {
                 await github.rest.issues.removeLabel({
                   owner,
                   repo,
                   issue_number: issueNumber,
-                  name: label
+                  name: "needs logs"
                 });
+              } catch (error) {
+                if (error.status !== 404) {
+                  throw error;
+                }
               }
-            }
-
-            if (
-              !result.needs_logs &&
-              currentLabels.includes("needs logs")
-            ) {
-              await github.rest.issues.removeLabel({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                name: "needs logs"
-              });
             }
 
             const labelsToAdd = [
               `priority: ${result.priority}`
             ];
 
-            if (result.needs_logs) {
+            if (needsLogs) {
               labelsToAdd.push("needs logs");
             }
 
@@ -179,20 +476,112 @@ jobs:
               labels: labelsToAdd
             });
 
-            const marker = "<!-- pocket-alchemy-ai-triage -->";
+            const logText = fs.readFileSync(
+              process.env.NUMBERED_LOG_PATH,
+              "utf8"
+            );
 
-            const logMessage = result.needs_logs
-              ? "\n\nPlease attach `logs/latest.log`. It is required even when the game did not crash because it may contain mod conflicts, warnings, loading errors, and exact mod versions."
-              : "";
+            const numberedLines = new Map();
 
-            const commentBody = `${marker}
-            Thank you for the report.
+            for (const line of logText.split(/\r?\n/)) {
+              const match = line.match(/^L(\d+) \| (.*)$/);
+              if (match) {
+                numberedLines.set(Number(match[1]), match[2]);
+              }
+            }
 
-            **Preliminary AI priority:** \`${result.priority}\`
+            const submittedEvidence = Array.isArray(result.evidence)
+              ? result.evidence
+              : [];
 
-            ${result.reason}${logMessage}
+            const verifiedEvidence = submittedEvidence.filter(item => {
+              if (
+                !item ||
+                !Number.isInteger(item.line) ||
+                typeof item.quote !== "string"
+              ) {
+                return false;
+              }
 
-            _This is an automated preliminary assessment. The final decision is made by the developer._`;
+              const sourceLine = numberedLines.get(item.line);
+              const quote = item.quote.trim();
+
+              return Boolean(
+                sourceLine &&
+                quote &&
+                sourceLine.includes(quote)
+              );
+            });
+
+            function cleanInline(value) {
+              return String(value ?? "")
+                .replace(/\r?\n/g, " ")
+                .trim();
+            }
+
+            function displayEnum(value) {
+              return String(value)
+                .replaceAll("_", " ");
+            }
+
+            let evidenceBlock = "";
+
+            if (verifiedEvidence.length > 0) {
+              const renderedEvidence = verifiedEvidence
+                .slice(0, 3)
+                .map(item => {
+                  const safeQuote = cleanInline(item.quote)
+                    .replaceAll("`", "'")
+                    .slice(0, 400);
+
+                  return (
+                    `> **L${item.line}:** \`${safeQuote}\`\n>\n` +
+                    `> ${cleanInline(item.explanation)}`
+                  );
+                })
+                .join("\n\n");
+
+              evidenceBlock =
+                `\n\n### Relevant log evidence\n\n${renderedEvidence}`;
+            } else if (
+              result.log_status === "analyzed" &&
+              submittedEvidence.length > 0
+            ) {
+              evidenceBlock =
+                "\n\n_No AI-provided quotation could be verified against the downloaded log, so no quotation was published._";
+            }
+
+            let logRequest = "";
+
+            if (result.log_status === "missing_required") {
+              logRequest =
+                "\n\nPlease attach the complete `logs/latest.log` file from the affected Minecraft session.";
+            } else if (result.log_status === "unreadable") {
+              logRequest =
+                "\n\nA log link was found, but the file could not be read safely. Please reattach the complete `logs/latest.log` file directly to the Issue.";
+            }
+
+            const marker = "<!-- gpushift-ai-triage -->";
+
+            const commentBody = [
+              marker,
+              "### Automated triage",
+              "",
+              `**Priority:** \`${result.priority}\`  `,
+              `**Log status:** \`${displayEnum(result.log_status)}\`  `,
+              `**GpuShift relation:** \`${displayEnum(result.gpushift_relation)}\`  `,
+              `**Confidence:** \`${result.confidence}\``,
+              "",
+              cleanInline(result.reason),
+              "",
+              `**Likely cause:** ${cleanInline(result.likely_cause)}`,
+              "",
+              `**Recommended next step:** ${cleanInline(result.recommended_action)}`,
+              evidenceBlock,
+              logRequest,
+              "",
+              "_This is an automated preliminary analysis. The developer makes the final decision._"
+            ].join("\n");
 
             const comments = await github.paginate(
               github.rest.issues.listComments,
@@ -226,16 +615,23 @@ jobs:
             }
 
             core.summary
-              .addHeading("Pocket Alchemy AI triage")
+              .addHeading("GpuShift AI triage")
               .addTable([
                 [
                   { data: "Field", header: true },
                   { data: "Result", header: true }
                 ],
                 ["Priority", result.priority],
-                ["Needs logs", String(result.needs_logs)],
+                ["Log status", result.log_status],
+                ["GpuShift relation", result.gpushift_relation],
                 ["Confidence", result.confidence],
-                ["Reason", result.reason]
+                ["Reason", result.reason],
+                ["Likely cause", result.likely_cause],
+                ["Recommended action", result.recommended_action],
+                [
+                  "Verified evidence",
+                  `${verifiedEvidence.length}/${submittedEvidence.length}`
+                ]
               ])
               .write();
 
@@ -250,53 +646,101 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
+          NUMBERED_LOG_PATH: ${{ runner.temp }}/gpushift-log-excerpt.txt
         run: |
           import json
           import os
           import smtplib
           from email.message import EmailMessage
 
-          result = json.loads(os.environ["AI_RESPONSE"])
+          gmail_user = os.environ.get("GMAIL_USER", "").strip()
+          gmail_password = os.environ.get("GMAIL_APP_PASSWORD", "").strip()
 
-          priority = result["priority"]
-          reason = result["reason"]
-          needs_logs = result["needs_logs"]
-          confidence = result["confidence"]
+          if not gmail_user or not gmail_password:
+              print("Gmail secrets are not configured. Skipping email notification.")
+              raise SystemExit(0)
+
+          result = json.loads(os.environ["AI_RESPONSE"])
 
           issue_number = os.environ["ISSUE_NUMBER"]
           issue_title = os.environ["ISSUE_TITLE"]
           issue_author = os.environ["ISSUE_AUTHOR"]
           issue_url = os.environ["ISSUE_URL"]
 
-          gmail_user = os.environ["GMAIL_USER"]
-          gmail_password = os.environ["GMAIL_APP_PASSWORD"]
+          numbered_lines = {}
+
+          log_path = os.environ.get("NUMBERED_LOG_PATH", "")
+          if log_path and os.path.exists(log_path):
+              with open(log_path, "r", encoding="utf-8", errors="replace") as log_file:
+                  for line in log_file:
+                      if not line.startswith("L") or " | " not in line:
+                          continue
+
+                      prefix, source_text = line.rstrip("\n").split(" | ", 1)
+                      try:
+                          line_number = int(prefix[1:])
+                      except ValueError:
+                          continue
+
+                      numbered_lines[line_number] = source_text
+
+          evidence_lines = []
+
+          for item in result.get("evidence", [])[:3]:
+              line_number = item.get("line")
+              quote = str(item.get("quote", "")).strip()
+              source_line = numbered_lines.get(line_number, "")
+
+              if not quote or quote not in source_line:
+                  continue
+
+              evidence_lines.append(
+                  f"L{line_number}: {quote}\n"
+                  f"Explanation: {item.get('explanation', '')}"
+              )
+
+          evidence_text = (
+              "\n\n".join(evidence_lines)
+              if evidence_lines
+              else "No log quotation was verified."
+          )
 
           message = EmailMessage()
           message["From"] = gmail_user
           message["To"] = gmail_user
           message["Subject"] = (
-              f"[Pocket Alchemy] {priority.upper()} bug #{issue_number}"
+              f"[GpuShift] {result['priority'].upper()} bug #{issue_number}"
           )
 
           message.set_content(
-              f"""New Pocket Alchemy bug report
+              f"""New GpuShift bug report
 
           Issue: #{issue_number}
           Title: {issue_title}
           Author: @{issue_author}
 
-          AI priority: {priority}
-          Confidence: {confidence}
-          Needs latest.log: {needs_logs}
+          AI priority: {result["priority"]}
+          Confidence: {result["confidence"]}
+          Log status: {result["log_status"]}
+          GpuShift relation: {result["gpushift_relation"]}
 
-          AI summary:
-          {reason}
+          Summary:
+          {result["reason"]}
+
+          Likely cause:
+          {result["likely_cause"]}
+
+          Recommended next step:
+          {result["recommended_action"]}
+
+          Evidence:
+          {evidence_text}
 
           Open issue:
           {issue_url}
           """
           )
 
-          with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+          with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as smtp:
               smtp.login(gmail_user, gmail_password)
               smtp.send_message(message)
