@@ -124,7 +124,7 @@ messages:
 model: openai/gpt-4o
 
 modelParameters:
-  maxCompletionTokens: 900
+  maxCompletionTokens: 650
   temperature: 0.1
 
 responseFormat: json_schema
