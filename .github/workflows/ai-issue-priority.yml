@@ -44,8 +44,15 @@ jobs:
           from pathlib import Path
 
           MAX_DOWNLOAD_BYTES = 8 * 1024 * 1024
-          MAX_EXCERPT_CHARS = 300_000
-          CONTEXT_LINES = 3
+
+          # Keep the complete AI request safely below the GitHub Models
+          # 8,000-token limit used by the selected model.
+          MAX_ISSUE_CHARS = 6_000
+          MAX_EXCERPT_CHARS = 10_000
+          CONTEXT_LINES = 2
+          START_LINES = 70
+          END_LINES = 100
+          MAX_SIGNAL_ANCHORS = 45
 
           allowed_initial_hosts = {
               "github.com",
@@ -114,12 +121,28 @@ jobs:
           body = issue.get("body") or ""
           author = (issue.get("user") or {}).get("login", "unknown")
 
-          issue_text = (
+          full_issue_text = (
               f"Title: {title}\n\n"
               f"Author: @{author}\n\n"
               f"Body:\n{body}\n"
           )
-          Path(os.environ["ISSUE_FILE"]).write_text(issue_text, encoding="utf-8")
+
+          if len(full_issue_text) > MAX_ISSUE_CHARS:
+              head_size = MAX_ISSUE_CHARS * 2 // 3
+              tail_size = MAX_ISSUE_CHARS - head_size
+
+              issue_text = (
+                  full_issue_text[:head_size]
+                  + "\n\n[ISSUE BODY TRUNCATED FOR AI TOKEN SAFETY]\n\n"
+                  + full_issue_text[-tail_size:]
+              )
+          else:
+              issue_text = full_issue_text
+
+          Path(os.environ["ISSUE_FILE"]).write_text(
+              issue_text,
+              encoding="utf-8",
+          )
 
           candidates = []
 
@@ -245,44 +268,142 @@ jobs:
               write_status("unreadable", "The downloaded attachment was empty.")
               raise SystemExit(0)
 
-          selected_indexes = set()
+          def signal_score(line: str) -> int:
+              lowered = line.lower()
+              score = 0
 
-          for index in range(min(250, len(lines))):
-              selected_indexes.add(index)
+              strong_signals = {
+                  "gpushift": 120,
+                  "caused by": 100,
+                  "fatal": 95,
+                  "exception": 90,
+                  "mixin apply failed": 90,
+                  "mixin transformation": 85,
+                  "failed to": 75,
+                  "error": 70,
+                  "crash": 65,
+                  "outofmemory": 65,
+                  "stacktrace": 60,
+              }
 
-          for index in range(max(0, len(lines) - 500), len(lines)):
-              selected_indexes.add(index)
+              medium_signals = {
+                  "shader": 40,
+                  "iris": 40,
+                  "oculus": 40,
+                  "sodium": 35,
+                  "embeddium": 35,
+                  "distant horizons": 35,
+                  "renderer": 30,
+                  "render thread": 30,
+                  "particle": 25,
+                  "block entity": 25,
+                  "item frame": 25,
+                  "opengl": 25,
+                  "vulkan": 25,
+                  "driver": 20,
+                  "warn": 15,
+              }
+
+              for term, value in strong_signals.items():
+                  if term in lowered:
+                      score += value
+
+              for term, value in medium_signals.items():
+                  if term in lowered:
+                      score += value
+
+              return score
+
+          anchors = []
 
           for index, line in enumerate(lines):
-              lowered = line.lower()
-              if any(keyword in lowered for keyword in keywords):
-                  start = max(0, index - CONTEXT_LINES)
-                  end = min(len(lines), index + CONTEXT_LINES + 1)
-                  selected_indexes.update(range(start, end))
+              score = signal_score(line)
+              if score > 0:
+                  anchors.append((score, index))
+
+          anchors.sort(key=lambda item: (-item[0], item[1]))
+          anchors = anchors[:MAX_SIGNAL_ANCHORS]
 
           output = [
               "LOG_FETCH_STATUS: downloaded",
               f"SOURCE_LABEL: {selected_label or 'unlabeled attachment'}",
               f"SOURCE_URL: {selected_url}",
               f"ORIGINAL_LINE_COUNT: {len(lines)}",
-              "The following lines preserve their original latest.log line numbers.",
+              "The following excerpts preserve their original latest.log line numbers.",
               "",
           ]
 
           current_chars = sum(len(item) + 1 for item in output)
+          emitted_indexes = set()
+          truncated = False
 
-          for index in sorted(selected_indexes):
+          def add_heading(title: str) -> bool:
+              nonlocal current_chars, truncated
+
+              heading = f"--- {title} ---"
+              projected = current_chars + len(heading) + 1
+
+              if projected > MAX_EXCERPT_CHARS:
+                  truncated = True
+                  return False
+
+              output.append(heading)
+              current_chars = projected
+              return True
+
+          def add_index(index: int) -> bool:
+              nonlocal current_chars, truncated
+
+              if index in emitted_indexes:
+                  return True
+
               numbered = f"L{index + 1} | {lines[index]}"
               projected = current_chars + len(numbered) + 1
 
               if projected > MAX_EXCERPT_CHARS:
-                  output.append(
-                      "EXCERPT_TRUNCATED: Additional log lines were omitted because the safe input limit was reached."
-                  )
-                  break
+                  truncated = True
+                  return False
 
               output.append(numbered)
+              emitted_indexes.add(index)
               current_chars = projected
+              return True
+
+          add_heading("STARTUP AND ENVIRONMENT")
+
+          for index in range(min(START_LINES, len(lines))):
+              if not add_index(index):
+                  break
+
+          if not truncated and anchors:
+              add_heading("HIGHEST-SIGNAL DIAGNOSTIC EXCERPTS")
+
+              for _, anchor_index in anchors:
+                  start = max(0, anchor_index - CONTEXT_LINES)
+                  end = min(len(lines), anchor_index + CONTEXT_LINES + 1)
+
+                  for index in range(start, end):
+                      if not add_index(index):
+                          break
+
+                  if truncated:
+                      break
+
+          if not truncated:
+              add_heading("END OF LOG")
+
+              for index in range(max(0, len(lines) - END_LINES), len(lines)):
+                  if not add_index(index):
+                      break
+
+          if truncated:
+              notice = (
+                  "EXCERPT_TRUNCATED: Additional lines were omitted to stay "
+                  "below the GitHub Models token limit."
+              )
+
+              if current_chars + len(notice) + 1 <= MAX_EXCERPT_CHARS:
+                  output.append(notice)
 
           Path(os.environ["LOG_FILE"]).write_text(
               "\n".join(output) + "\n",
