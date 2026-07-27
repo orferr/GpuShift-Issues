@@ -9,7 +9,7 @@ The source code is currently not publicly available.
 ## Open Issues
 
 <!-- ISSUES-LIST:START -->
-- [#6](https://github.com/orferr/GpuShift-Issues/issues/6) [Bug]: test
+- [#7](https://github.com/orferr/GpuShift-Issues/issues/7) [Bug]: test 2 bot
 <!-- ISSUES-LIST:END -->
 
 ## Before reporting an issue
