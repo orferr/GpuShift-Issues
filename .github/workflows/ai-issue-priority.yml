@@ -338,7 +338,7 @@ jobs:
           truncated = False
 
           def add_heading(title: str) -> bool:
-              nonlocal current_chars, truncated
+              global current_chars, truncated
 
               heading = f"--- {title} ---"
               projected = current_chars + len(heading) + 1
@@ -352,7 +352,7 @@ jobs:
               return True
 
           def add_index(index: int) -> bool:
-              nonlocal current_chars, truncated
+              global current_chars, truncated
 
               if index in emitted_indexes:
                   return True
