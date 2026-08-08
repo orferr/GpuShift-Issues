@@ -9,6 +9,7 @@ The source code is currently not publicly available.
 ## Open Issues
 
 <!-- ISSUES-LIST:START -->
+- [#9](https://github.com/orferr/GpuShift-Issues/issues/9) [Bug]: Singleplayer worlds do not load on laptop with dGPU
 - [#8](https://github.com/orferr/GpuShift-Issues/issues/8) [Bug]: gpu load is "N/A" and fps/tps didn't changed
 <!-- ISSUES-LIST:END -->
 
