@@ -9,7 +9,7 @@ The source code is currently not publicly available.
 ## Open Issues
 
 <!-- ISSUES-LIST:START -->
-- [#8](https://github.com/orferr/GpuShift-Issues/issues/8) [Bug]: gpu load is "N/A" and fps/tps didn't changed
+_No open issues._
 <!-- ISSUES-LIST:END -->
 
 ## Before reporting an issue
