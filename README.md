@@ -9,6 +9,7 @@ The source code is currently not publicly available.
 ## Open Issues
 
 <!-- ISSUES-LIST:START -->
+- [#11](https://github.com/orferr/GpuShift-Issues/issues/11) [Bug]:Create Simulated Portable Engine Causes Lag when Powered and Tilted Towards East-South
 - [#10](https://github.com/orferr/GpuShift-Issues/issues/10) [Bug]:Entities on sable structure cannot be rendered
 <!-- ISSUES-LIST:END -->
 
